@@ -1,12 +1,10 @@
 import openpyxl
 from xlcalculator import ModelCompiler, Evaluator
+from io import BytesIO
 import re
 
-def load_workbook(path):
-    return openpyxl.load_workbook(path, data_only=False)
-
-def save_workbook(wb, path):
-    wb.save(path)
+def load_workbook(file_bytes):
+    return openpyxl.load_workbook(file_bytes, data_only=False)
 
 def fill_empty_cells_with_zero(sheet):
     for row in sheet.iter_rows():
@@ -38,35 +36,40 @@ def try_manual_sumproduct(sheet, formula):
         return sum(b * ae for b, ae in zip(b_vals, ae_vals))
     return None
 
-def evaluate_excel_formula(file_path, cell_ref, sheet_name="S"):
+def evaluate_excel_formula(file_bytes, cell_ref, sheet_name="S"):
     compiler = ModelCompiler()
-    model = compiler.read_and_parse_archive(file_path)
+    model = compiler.read_and_parse_archive(file_bytes)
     evaluator = Evaluator(model)
     return evaluator.evaluate(f"{sheet_name}!{cell_ref}")
 
-def evaluate_cells(file_path, quantities, cell_refs):
-    wb = load_workbook(file_path)
+def evaluate_cells(file_bytes, quantities, cell_refs):
+    wb = load_workbook(file_bytes)
     sheet = wb.active
     sheet_name = "S"
 
     fill_empty_cells_with_zero(sheet)
     update_ingredient_quantities(sheet, quantities)
-    save_workbook(wb, file_path)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
 
     results = {}
     for ref in cell_refs:
         formula = sheet[ref].value
         try:
-            result = evaluate_excel_formula(file_path, ref, sheet_name)
+            result = evaluate_excel_formula(output, ref, sheet_name)
             results[ref] = result
         except Exception:
             if isinstance(formula, str) and formula.startswith("=") and is_unsupported_formula(formula):
                 manual_result = try_manual_sumproduct(sheet, formula[1:])
                 if manual_result is not None:
                     sheet[ref].value = manual_result
-                    save_workbook(wb, file_path)
+                    output = BytesIO()
+                    wb.save(output)
+                    output.seek(0)
                     try:
-                        reevaluated = evaluate_excel_formula(file_path, ref, sheet_name)
+                        reevaluated = evaluate_excel_formula(output, ref, sheet_name)
                         results[ref] = reevaluated
                     except Exception:
                         results[ref] = "#ERROR"
