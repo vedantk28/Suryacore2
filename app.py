@@ -1,7 +1,7 @@
 import streamlit as st
 from excel_backend import evaluate_cells
 
-FILE_PATH = "Suryacore2/2experiment.xlsx"
+FILE_PATH = "2experiment.xlsx"
 
 # Ingredient names from A2 to A6
 ingredient_names = ["Ingredient 1", "Ingredient 2", "Ingredient 3", "Ingredient 4", "Ingredient 5"]
