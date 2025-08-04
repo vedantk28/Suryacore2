@@ -1,13 +1,11 @@
 import streamlit as st
 from excel_backend import evaluate_cells
+from io import BytesIO
 
 FILE_PATH = "2experiment.xlsx"
 
-# Ingredient names from A2 to A6
-ingredient_names = ["Ingredient 1", "Ingredient 2", "Ingredient 3", "Ingredient 4", "Ingredient 5"]
+ingredient_names = ["Maize", "Jowar", "B.Rice", "Wheat", "Bajra"]
 ingredient_cells = [f"B{i}" for i in range(2, 7)]
-
-# Output cells
 output_cells = [f"F{i}" for i in range(1, 23)] + [f"F{i}" for i in range(24, 42)] + [f"H{i}" for i in range(24, 40)]
 
 st.set_page_config(layout="wide")
@@ -22,8 +20,19 @@ with col1:
         qty = st.slider(f"{name}", 0, 100, 50)
         quantities.append(qty)
 
+    run_button = st.button("Run Simulation")
+
 with col2:
     st.header("📊 Computed Results")
-    results, labels = evaluate_cells(FILE_PATH, quantities, output_cells)
-    for label, cell, value in zip(labels, output_cells, results.values()):
-        st.write(f"**{label}** ({cell}): `{value}`")
+
+    if run_button:
+        try:
+            with open(FILE_PATH, "rb") as f:
+                file_bytes = BytesIO(f.read())
+
+            results, labels = evaluate_cells(file_bytes, quantities, output_cells)
+
+            for label, cell, value in zip(labels, output_cells, results.values()):
+                st.write(f"**{label}** ({cell}): `{value}`")
+        except Exception as e:
+            st.error(f"❌ Failed to run simulation: {e}")
